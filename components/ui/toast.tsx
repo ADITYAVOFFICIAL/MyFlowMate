@@ -7,7 +7,8 @@ import { X } from "lucide-react"
 
 import { cn } from "../../lib/utils"
 
-const ToastProvider = ToastPrimitives.Provider
+// Rename this to avoid shadowing the custom provider
+const RadixToastProvider = ToastPrimitives.Provider
 
 const ToastViewport = React.forwardRef<
   React.ElementRef<typeof ToastPrimitives.Viewport>,
@@ -30,7 +31,8 @@ const toastVariants = cva(
     variants: {
       variant: {
         default: "bg-background border",
-        destructive: "group destructive bg-destructive text-destructive-foreground border-destructive",
+        destructive:
+          "group destructive bg-destructive text-destructive-foreground border-destructive",
       },
     },
     defaultVariants: {
@@ -136,14 +138,16 @@ const ToastProviderComponent: React.FC<{ children: React.ReactNode }> = ({
   }
 
   return (
-    <ToastContext.Provider value={{ toast: addToast }}>
-      {children}
-      <ToastViewport>
-        {toasts.map((toast, index) => (
-          <Toast key={index} {...toast} />
-        ))}
-      </ToastViewport>
-    </ToastContext.Provider>
+    <RadixToastProvider>
+      <ToastContext.Provider value={{ toast: addToast }}>
+        {children}
+        <ToastViewport>
+          {toasts.map((toast, index) => (
+            <Toast key={index} {...toast} />
+          ))}
+        </ToastViewport>
+      </ToastContext.Provider>
+    </RadixToastProvider>
   )
 }
 

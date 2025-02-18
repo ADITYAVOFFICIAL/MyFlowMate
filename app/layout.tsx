@@ -30,7 +30,6 @@ export default function RootLayout({
           <ToastProvider>
             <Header />
             <main className="min-h-screen bg-background">{children}</main>
-            <ToastViewport /> {/* Add ToastViewport here */}
           </ToastProvider>
         </ThemeProvider>
       </body>
