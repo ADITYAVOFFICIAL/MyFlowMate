@@ -1,15 +1,13 @@
+import './globals.css';
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
-import './globals.css';
-import { ThemeProvider } from '../components/theme-provider';
-import { ToastProvider, ToastViewport } from '../components/ui/toast'; // Import ToastProvider and ToastViewport here
-import Header from '../components/header';
+import { ThemeProvider } from "@/components/theme-provider";
 
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'MyFlowMate - Your Personal Menstrual Care Companion',
-  description: 'Track your menstrual cycle, symptoms, and get personalized health insights.',
+  title: 'MyFlowMate - Comprehensive Menstruation Care Platform',
+  description: 'Track your cycle, monitor symptoms, and get personalized insights with MyFlowMate.',
 };
 
 export default function RootLayout({
@@ -26,11 +24,7 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          {/* Wrap the entire layout inside ToastProvider */}
-          <ToastProvider>
-            <Header />
-            <main className="min-h-screen bg-background">{children}</main>
-          </ToastProvider>
+          {children}
         </ThemeProvider>
       </body>
     </html>
