@@ -1,56 +1,36 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { databases, DATABASE_ID, COLLECTIONS } from "@/lib/appwrite";
-import { ID } from "appwrite";
-import { chatWithGemini } from "@/lib/gemini";
+import { ToastContainer, toast } from "react-toastify";
+import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Card } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import ReactMarkdown from "react-markdown";
+import "react-toastify/dist/ReactToastify.css";
+
+const GEMINI_API_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
 
 interface Message {
-  role: "user" | "assistant";
-  content: string;
+  id: number;
+  text: string;
+  sender: "user" | "bot";
+  timestamp: Date;
 }
 
-export default function AssistantPage() {
-  const [messages, setMessages] = useState<Message[]>([]);
+export default function Chat() {
+  const [messages, setMessages] = useState<Message[]>([
+    {
+      id: 1,
+      text: "Hello! I'm your AI assistant. How can I assist you with your menstrual health today?",
+      sender: "bot",
+      timestamp: new Date(),
+    },
+  ]);
   const [input, setInput] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!input.trim() || isLoading) return;
-
-    const userMessage = input.trim();
-    setInput("");
-    setMessages((prev) => [...prev, { role: "user", content: userMessage }]);
-    setIsLoading(true);
-
-    try {
-      const response = await chatWithGemini(userMessage);
-      
-      setMessages((prev) => [...prev, { role: "assistant", content: response }]);
-
-      // Save conversation to database
-      await databases.createDocument(
-        DATABASE_ID,
-        COLLECTIONS.AI_CONVERSATIONS,
-        ID.unique(),
-        {
-          messages: [...messages, { role: "user", content: userMessage }, { role: "assistant", content: response }],
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        }
-      );
-    } catch (error) {
-      console.error("Error chatting with AI:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (scrollAreaRef.current) {
@@ -58,53 +38,113 @@ export default function AssistantPage() {
     }
   }, [messages]);
 
+  const handleSendMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!input.trim()) return;
+
+    const userMessage: Message = {
+      id: messages.length + 1,
+      text: input,
+      sender: "user",
+      timestamp: new Date(),
+    };
+    setMessages((prev) => [...prev, userMessage]);
+    setInput("");
+    setLoading(true);
+
+    try {
+      const payload = {
+        contents: [
+          {
+            parts: [
+              {
+                text: `You are an AI chatbot specialized in menstrual health. Respond concisely and supportively. Provide cycle tracking insights, hygiene recommendations, and wellness tips. User input: ${input}`,
+              },
+            ],
+          },
+        ],
+      };
+
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        }
+      );
+
+      if (!response.ok) throw new Error(`API request failed: ${response.statusText}`);
+
+      const data = await response.json();
+      let botText = data.candidates?.[0]?.content?.parts?.[0]?.text || "I'm sorry, I couldn't generate a response.";
+
+      const botMessage: Message = {
+        id: messages.length + 2,
+        text: botText.trim(),
+        sender: "bot",
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, botMessage]);
+    } catch (error: any) {
+      console.error("Error calling Gemini API:", error);
+      toast.error("Failed to communicate with AI");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
-    <div className="h-[calc(100vh-12rem)] flex flex-col space-y-4">
-      <h2 className="text-3xl font-bold tracking-tight">AI Health Assistant</h2>
-      <Card className="flex-1">
-        <CardContent className="p-4 h-full flex flex-col">
-          <ScrollArea className="flex-1 pr-4" ref={scrollAreaRef}>
+    <div className="min-h-screen py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-4xl mx-auto">
+        <Card className="h-[600px] flex flex-col relative">
+          <div className="p-4 border-b">
+            <h1 className="text-xl font-semibold">Chat with MyFlowMate AI</h1>
+          </div>
+          <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
             <div className="space-y-4">
-              {messages.map((message, index) => (
-                <div
-                  key={index}
-                  className={`flex ${
-                    message.role === "assistant" ? "justify-start" : "justify-end"
-                  }`}
-                >
-                  <div
-                    className={`rounded-lg px-4 py-2 max-w-[80%] ${
-                      message.role === "assistant"
-                        ? "bg-muted"
-                        : "bg-primary text-primary-foreground"
-                    }`}
+              <AnimatePresence initial={false}>
+                {messages.map((message) => (
+                  <motion.div
+                    key={message.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 20 }}
+                    transition={{ duration: 0.3 }}
+                    className={`flex ${message.sender === "user" ? "justify-end" : "justify-start"}`}
                   >
-                    {message.content}
-                  </div>
-                </div>
-              ))}
-              {isLoading && (
-                <div className="flex justify-start">
-                  <div className="bg-muted rounded-lg px-4 py-2">
-                    Thinking...
-                  </div>
-                </div>
-              )}
+                    <div
+                      className={`max-w-[80%] rounded-lg p-3 ${message.sender === "user" ? "bg-primary text-primary-foreground" : "bg-muted"}`}
+                    >
+                      <ReactMarkdown>{message.text}</ReactMarkdown>
+                      <p className="text-xs mt-1 opacity-70">
+                        {message.timestamp.toLocaleTimeString("en-US", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                          hour12: true,
+                        })}
+                      </p>
+                    </div>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
             </div>
           </ScrollArea>
-          <form onSubmit={handleSubmit} className="mt-4 flex gap-2">
+          <form onSubmit={handleSendMessage} className="p-4 border-t flex gap-2">
             <Input
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Ask me anything about your health..."
-              disabled={isLoading}
+              placeholder="Ask about your menstrual health..."
+              className="flex-1"
+              disabled={loading}
             />
-            <Button type="submit" disabled={isLoading}>
-              Send
+            <Button type="submit" disabled={loading}>
+              {loading ? "Thinking..." : "Send"}
             </Button>
           </form>
-        </CardContent>
-      </Card>
+        </Card>
+        <ToastContainer />
+      </div>
     </div>
   );
 }

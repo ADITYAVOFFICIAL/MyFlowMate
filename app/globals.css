@@ -80,3 +80,7 @@
     @apply bg-background text-foreground;
   }
 }
+.loader {
+  @apply w-5 h-5 border-2 border-t-2 border-white border-opacity-25 rounded-full animate-spin;
+  border-top-color: currentColor;
+}
